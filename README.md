@@ -24,7 +24,7 @@ The script:
 ### 1. Clone the repo
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:Grega2804/Kilo-Sauna-Grab.git
 cd hoas-booking
 ```
 
