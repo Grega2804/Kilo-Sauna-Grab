@@ -54,7 +54,13 @@ Open `hoas_book.py` and set:
 SERVICE_ID = "72"    # ID of the sauna/room — see below how to find it
 TIME = "21.00"       # Time slot you want to book
 ```
-
+```python
+So Sauna 1 is SERVICE_ID = "72" and Sauna 2 is SERVICE_ID = "73". Pls change that on whichever Sauna you want to book. 
+```
+```python
+Sauna 1 is available from *WED - SUN*
+Sauna 2 is available from *WED - SAT* --> note Sauna 2 (the good one) is not available on Sundays
+```
 **How to find your SERVICE_ID:**
 1. Log in to the booking site
 2. Navigate to the timetable for your sauna
