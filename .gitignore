@@ -1,0 +1,4 @@
+.env
+session_cookies.json
+hoas_book.log
+__pycache__/
