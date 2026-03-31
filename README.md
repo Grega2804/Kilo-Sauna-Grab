@@ -1,4 +1,4 @@
-# HOAS Booking Automation
+# Secret Kilo Booking Script (psshht!!)
 
 Automatically books a sauna slot on the [HOAS Tampuuri booking system](https://booking-hoas.tampuuri.fi), reserving the slot 2 weeks in advance.
 
@@ -167,14 +167,14 @@ powercfg /change standby-timeout-ac 30
 - `session_cookies.json` is saved locally and reused on every run. If the session expires the script re-logs in automatically.
 - The CAPTCHA on the login page is only triggered after multiple failed login attempts. Under normal use it will not appear.
 
-## Files
+<!-- ## Files
 
 | File | Description |
 |------|-------------|
 | `hoas_book.py` | Main script |
 | `.env` | Credentials (not committed) |
 | `session_cookies.json` | Saved session (not committed) |
-| `hoas_book.log` | Log output from cron runs |
+| `hoas_book.log` | Log output from cron runs | -->
 
 <!-- ## .gitignore
 

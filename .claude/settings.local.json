@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:booking-hoas.tampuuri.fi)",
+      "Bash(pip install:*)",
+      "Bash(systemctl status:*)"
+    ]
+  }
+}
