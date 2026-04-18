@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import datetime
 import requests
 from pathlib import Path
@@ -10,10 +11,17 @@ load_dotenv()
 USERNAME = os.environ["HOAS_USERNAME"]
 PASSWORD = os.environ["HOAS_PASSWORD"]
 
+# # --- Config ---
+# SERVICE_ID = "72"      # sauna/room ID from the URL
+# TIME = "21.00"         # Sunday sauna turn
+# DATE = (datetime.date.today() + datetime.timedelta(days=14)).strftime("%Y-%m-%d")
+# # --------------
+
 # --- Config ---
-SERVICE_ID = "72"      # sauna/room ID from the URL
+SERVICE_ID = "73"      # sauna/room ID from the URL
 TIME = "21.00"         # Sunday sauna turn
-DATE = (datetime.date.today() + datetime.timedelta(days=14)).strftime("%Y-%m-%d")
+# Booking opens Saturday 21:00 for the Sunday 15 days out (not 14).
+DATE = (datetime.date.today() + datetime.timedelta(days=15)).strftime("%Y-%m-%d")
 # --------------
 
 BASE = "https://booking-hoas.tampuuri.fi"
@@ -73,7 +81,8 @@ def save_session_via_browser():
         print(f"Cookies saved to {COOKIES_FILE}")
 
 
-def book_slot():
+def build_session():
+    """Create an authenticated session, reusing saved cookies."""
     if not COOKIES_FILE.exists():
         print("No saved session. Trying automatic login...")
         if save_session_via_requests() is None:
@@ -82,33 +91,84 @@ def book_slot():
 
     s = requests.Session()
     s.headers.update({"User-Agent": "Mozilla/5.0"})
-
-    # Load saved cookies
     cookies = json.loads(COOKIES_FILE.read_text())
     for c in cookies:
         s.cookies.set(c["name"], c["value"], domain=c["domain"])
+    return s
 
-    # Try booking
+
+def try_book(s):
+    """Make a single booking attempt with an existing session. Returns 'success', 'taken', or 'not_open'."""
     r = s.get(f"{BASE}/varaus/service/reserve/{SERVICE_ID}/{TIME}/{DATE}")
     r.raise_for_status()
 
-    # Check if session expired (redirected to login)
     if "/auth/login" in r.url:
-        print("Session expired. Re-logging in...")
-        COOKIES_FILE.unlink()
-        if save_session_via_requests() is None:
-            print("Captcha detected. Opening browser to log in manually...")
-            save_session_via_browser()
-        return book_slot()
-
-    print(f"Booking request sent: {r.status_code} — {r.url}")
+        return "session_expired"
 
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(r.text, "html.parser")
     msg = soup.find(class_="alert") or soup.find(id="confirm-message")
     if msg:
-        print(msg.get_text(strip=True))
+        text = msg.get_text(strip=True)
+        print(text)
+        text_lower = text.lower()
+        if any(w in text_lower for w in ("varaus tehty", "booked", "confirmed", "vahvistet")):
+            return "success"
+        if any(w in text_lower for w in ("ei ole", "not available", "unavailable", "varattu", "taken", "full")):
+            return "taken"
+        if any(w in text_lower for w in ("ei voi", "not yet", "liian", "too early")):
+            return "not_open"
+
+    return "not_open"
 
 
 if __name__ == "__main__":
-    book_slot()
+    BOOK_HOUR = 21
+    BOOK_MINUTE = 0
+    START_SECONDS_EARLY = 5    # start hammering this many seconds before opening
+    RETRY_INTERVAL = 0.1       # seconds between attempts
+
+    # Build session once — reused across all attempts
+    s = build_session()
+
+    now = datetime.datetime.now()
+    target = now.replace(hour=BOOK_HOUR, minute=BOOK_MINUTE, second=0, microsecond=0)
+    start = target - datetime.timedelta(seconds=START_SECONDS_EARLY)
+
+    # Pre-warm the connection so the first real attempt skips TCP+TLS setup
+    warmup_at = start - datetime.timedelta(seconds=2)
+    wait = (warmup_at - datetime.datetime.now()).total_seconds()
+    if wait > 0:
+        print(f"Waiting until {warmup_at.strftime('%H:%M:%S')} to pre-warm connection...")
+        time.sleep(wait)
+    try:
+        s.get(f"{BASE}/", timeout=3)
+        print("Connection pre-warmed.")
+    except Exception:
+        pass
+
+    wait = (start - datetime.datetime.now()).total_seconds()
+    if wait > 0:
+        print(f"Waiting until {start.strftime('%H:%M:%S')} to start retrying...")
+        time.sleep(wait)
+
+    print("Starting booking attempts...")
+    attempt = 0
+    while True:
+        attempt += 1
+        ts = datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+        print(f"[{ts}] Attempt {attempt}")
+        result = try_book(s)
+        if result == "success":
+            print("Booking confirmed!")
+            break
+        if result == "taken":
+            print("Slot already taken. Stopping.")
+            break
+        if result == "session_expired":
+            print("Session expired mid-run. Re-logging in...")
+            COOKIES_FILE.unlink()
+            if save_session_via_requests() is None:
+                save_session_via_browser()
+            s = build_session()
+        time.sleep(RETRY_INTERVAL)

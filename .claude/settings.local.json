@@ -3,7 +3,14 @@
     "allow": [
       "WebFetch(domain:booking-hoas.tampuuri.fi)",
       "Bash(pip install:*)",
-      "Bash(systemctl status:*)"
+      "Bash(systemctl status:*)",
+      "Bash(crontab -l)",
+      "Bash(crontab -)",
+      "Bash(at 21:00 Apr 16 2026)",
+      "Bash(atq)",
+      "Bash(atrm 1)",
+      "Bash(at 20:59 Apr 16 2026)",
+      "Bash(/usr/bin/python3 -c \"import dotenv, requests, bs4\")"
     ]
   }
 }
